@@ -1,1 +1,3 @@
-# CN_TCPTask2
+# ComputerNetwork_TCPTask2
+
+## Ken Ding and Genie Hou
