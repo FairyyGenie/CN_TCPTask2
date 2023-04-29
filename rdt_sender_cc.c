@@ -29,7 +29,7 @@ tcp_packet *sndpkt;
 tcp_packet *recvpkt;
 sigset_t sigmask;
 int firstByteInWindow;
-int lastByteinWindow;
+int lastByteInWindow;
 int packetBase;
 int length;
 char buffer[DATA_SIZE];
@@ -37,7 +37,7 @@ FILE *fp;
 int acks[20000];
 int bytesReceived;
 int newPacketBase;
-int temp;
+int temp = 0;
 int ssthresh = INT_MAX;
 int cwnd = MSS_SIZE;
 int dupAckCount = 0;
@@ -85,9 +85,34 @@ void init_timer(int delay, void (*sig_handler)(int))
     sigaddset(&sigmask, SIGALRM);
 }
 
+void sendpacket(int cwnd){
+    while(lastByteInWindow - firstByteInWindow < cwnd){
+                length = fread(buffer, 1, DATA_SIZE, fp);
+                if (length <= 0)
+                {
+                    VLOG(INFO, "End Of File has been reached");
+                    sndpkt = make_packet(0);
+                    sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0,
+                           (const struct sockaddr *)&serveraddr, serverlen);
+                    eof = 1;
+                    break;
+                }
+                sndpkt = make_packet(length);
+                sndpkt->hdr.seqno = temp;
+                memcpy(sndpkt->data, buffer, length);
+                printf("Retransmission of packet %d done!\n", sndpkt->hdr.seqno);
+                if (sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0)
+                {
+                    error("sendto");
+                }
+                lastByteInWindow+=length;
+    }
+}
+
+
 int main(){
 
-    char state[256];
+    char state[256] = "slow start";
     state = 
     int portno;
     // int next_seqno;
@@ -132,10 +157,9 @@ int main(){
     serveraddr.sin_port = htons(portno);
 
     assert(MSS_SIZE - TCP_HDR_SIZE > 0);
-
-
+    firstByteInWindow = 0;
+    lastByteInWindow = firstByteInWindow;
     next_seqno = 0;
-    int windowCreated = 0;
     // bytes[i] is the last byte that packet NUMBER i should contain.
     int bytes[20000];
     bzero(bytes, sizeof(bytes));
@@ -145,6 +169,7 @@ int main(){
 
     while(1){
         if(strcmp(state, "slow start") == 0){
+            sendpacket(cwnd);
             //receive bytes from sender
             bytesReceived = recvfrom(sockfd, buffer, MSS_SIZE, 0,
                       (struct sockaddr *)&serveraddr, (socklen_t *)&serverlen);
@@ -158,14 +183,15 @@ int main(){
                 if(cwnd < ssthresh){
                     cwnd+=MSS_SIZE;
                     dupAckCount = 0;
-                    //send new packets
+                    firstByteInWindow = recvpkt->hdr.ackno+1;
+                    sendpacket(cwnd);
                     start_timer();
                 }
                 else{
                     state = "congestion avoidance";
                     cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
+                    sendpacket(cwnd);
                     start_timer();
-                    //send new packets
                 }
             }
             acks[recvpkt->hdr.ackno%20000]++;
@@ -175,9 +201,8 @@ int main(){
                 ssthresh = max(2*MSS_SIZE, cwnd/2);
                 start_timer();
                 //retransmit missing segments
+                sendpacket(cwnd);
             }
-
-
         }
         else if(strcmp(state, "congestion avoidance") == 0){
 
