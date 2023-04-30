@@ -27,7 +27,7 @@ struct sockaddr_in serveraddr;
 struct itimerval timer;
 tcp_packet *sndpkt;
 tcp_packet *recvpkt;
-sigset_t sigmask;
+sigset_t sigmask[3];
 int firstByteInWindow;
 int firstByteNotInWindow;
 int packetBase;
@@ -63,7 +63,8 @@ void ssTimeout(int sig)
         }
         ssthresh = max(2*MSS_SIZE, cwnd/2);
         dupAckCount = 0;
-        //retransmit missing segment
+        fseek(fp, SEEK_SET, firstByteInWindow);
+        sendpacket(cwnd);
         start_timer();
     }
 }
@@ -90,25 +91,25 @@ void sendpacket(int cwnd){
         firstByteNotInWindow = firstByteInWindow;
     }
     while(firstByteNotInWindow - firstByteInWindow < cwnd){
-                length = fread(buffer, 1, DATA_SIZE, fp);
-                if (length <= 0)
-                {
-                    VLOG(INFO, "End Of File has been reached");
-                    sndpkt = make_packet(0);
-                    sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0,
-                           (const struct sockaddr *)&serveraddr, serverlen);
-                    eof = 1;
-                    break;
-                }
-                sndpkt = make_packet(length);
-                sndpkt->hdr.seqno = temp;
-                memcpy(sndpkt->data, buffer, length);
-                printf("Retransmission of packet %d done!\n", sndpkt->hdr.seqno);
-                if (sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0)
-                {
-                    error("sendto");
-                }
-                firstByteNotInWindow+=length;
+        length = fread(buffer, 1, DATA_SIZE, fp);
+        if (length <= 0)
+        {
+            VLOG(INFO, "End Of File has been reached");
+            sndpkt = make_packet(0);
+            sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0,
+                    (const struct sockaddr *)&serveraddr, serverlen);
+            eof = 1;
+            break;
+        }
+        sndpkt = make_packet(length);
+        sndpkt->hdr.seqno = temp;
+        memcpy(sndpkt->data, buffer, length);
+        printf("Retransmission of packet %d done!\n", sndpkt->hdr.seqno);
+        if (sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0)
+        {
+            error("sendto");
+        }
+        firstByteNotInWindow+=length;
     }
 }
 
@@ -168,7 +169,7 @@ int main(){
     bzero(bytes, sizeof(bytes));
     int length;
 
-    init_timer(RETRY, sendpacket);
+    init_timer(RETRY, ssTimeout);
 
     while(1){
         //IMPORTANT: ACKS may arrive out of order.
