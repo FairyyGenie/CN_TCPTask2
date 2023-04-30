@@ -29,7 +29,7 @@ tcp_packet *sndpkt;
 tcp_packet *recvpkt;
 sigset_t sigmask;
 int firstByteInWindow;
-int lastByteInWindow;
+int firstByteNotInWindow;
 int packetBase;
 int length;
 char buffer[DATA_SIZE];
@@ -86,7 +86,10 @@ void init_timer(int delay, void (*sig_handler)(int))
 }
 
 void sendpacket(int cwnd){
-    while(lastByteInWindow - firstByteInWindow < cwnd){
+    if(firstByteNotInWindow < firstByteInWindow){
+        firstByteNotInWindow = firstByteInWindow;
+    }
+    while(firstByteNotInWindow - firstByteInWindow < cwnd){
                 length = fread(buffer, 1, DATA_SIZE, fp);
                 if (length <= 0)
                 {
@@ -105,7 +108,7 @@ void sendpacket(int cwnd){
                 {
                     error("sendto");
                 }
-                lastByteInWindow+=length;
+                firstByteNotInWindow+=length;
     }
 }
 
@@ -158,16 +161,17 @@ int main(){
 
     assert(MSS_SIZE - TCP_HDR_SIZE > 0);
     firstByteInWindow = 0;
-    lastByteInWindow = firstByteInWindow;
+    firstByteNotInWindow = firstByteInWindow;
     next_seqno = 0;
     // bytes[i] is the last byte that packet NUMBER i should contain.
     int bytes[20000];
     bzero(bytes, sizeof(bytes));
     int length;
 
-    init_timer(RETRY, resend_packets);
+    init_timer(RETRY, sendpacket);
 
     while(1){
+        //IMPORTANT: ACKS may arrive out of order.
         if(strcmp(state, "slow start") == 0){
             sendpacket(cwnd);
             //receive bytes from sender
@@ -183,15 +187,16 @@ int main(){
                 if(cwnd < ssthresh){
                     cwnd+=MSS_SIZE;
                     dupAckCount = 0;
-                    firstByteInWindow = recvpkt->hdr.ackno+1;
-                    sendpacket(cwnd);
+                    if(hdr.ackno+1 > firstByteInWindow){
+                        firstByteInWindow = recvpkt->hdr.ackno+1;
+                    }
                     start_timer();
                 }
                 else{
                     state = "congestion avoidance";
                     cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
-                    sendpacket(cwnd);
                     start_timer();
+                    sendpacket(cwnd);
                 }
             }
             acks[recvpkt->hdr.ackno%20000]++;
