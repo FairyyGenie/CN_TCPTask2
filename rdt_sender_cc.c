@@ -27,7 +27,7 @@ struct sockaddr_in serveraddr;
 struct itimerval timer;
 tcp_packet *sndpkt;
 tcp_packet *recvpkt;
-sigset_t sigmask[3];
+sigset_t sigmask;
 int firstByteInWindow;
 int firstByteNotInWindow;
 int packetBase;
@@ -39,8 +39,13 @@ int bytesReceived;
 int newPacketBase;
 int temp = 0;
 int ssthresh = INT_MAX;
-int cwnd = MSS_SIZE;
+float cwnd = MSS_SIZE;
 int dupAckCount = 0;
+int EstimatedRTT = 0;
+int DevRTT = 0;
+int startTimes[20000];
+int timeOutInterval;
+
 
 void start_timer()
 {
@@ -52,6 +57,17 @@ void stop_timer()
 {
     sigprocmask(SIG_BLOCK, &sigmask, NULL);
 }
+
+int karn(tcp_packet *p){
+    int alpha = 0.25;
+    int beta = 0.25;
+    int sampleRTT = timer.it_value - startTimes[p->hdr.seqno];
+    EstimatedRTT = (1-alpha) * EstimatedRTT + alpha * sampleRTT;
+    DevRTT = (1 - beta) * DevRTT + beta * abs(sampleRTT - EstimatedRTT);
+    int timeoutInterval = EstimatedRTT + 4 * DevRTT;
+    return timeoutInterval;
+}
+
 
 void ssTimeout(int sig)
 {
@@ -90,7 +106,7 @@ void sendpacket(int cwnd){
     if(firstByteNotInWindow < firstByteInWindow){
         firstByteNotInWindow = firstByteInWindow;
     }
-    while(firstByteNotInWindow - firstByteInWindow < cwnd){
+    while(firstByteNotInWindow < firstByteInWindow + cwnd){
         length = fread(buffer, 1, DATA_SIZE, fp);
         if (length <= 0)
         {
@@ -102,13 +118,14 @@ void sendpacket(int cwnd){
             break;
         }
         sndpkt = make_packet(length);
-        sndpkt->hdr.seqno = temp;
+        sndpkt->hdr.seqno = firstByteNotInWindow;
         memcpy(sndpkt->data, buffer, length);
-        printf("Retransmission of packet %d done!\n", sndpkt->hdr.seqno);
+        printf("transmission of packet %d done!\n", sndpkt->hdr.seqno);
         if (sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, (const struct sockaddr *)&serveraddr, serverlen) < 0)
         {
             error("sendto");
         }
+        startTimes[sndpkt->hdr.seqno % 20000] = timer.it_value;
         firstByteNotInWindow+=length;
     }
 }
@@ -183,6 +200,7 @@ int main(){
                 error("recvfrom");
             }
             recvpkt = (tcp_packet *)buffer;
+            timeOutInterval = karn(recvpkt);
             //if it's a new ACK
             if (acks[recvpkt->hdr.ackno%20000] == 0){
                 if(cwnd < ssthresh){
@@ -191,11 +209,13 @@ int main(){
                     if(hdr.ackno+1 > firstByteInWindow){
                         firstByteInWindow = recvpkt->hdr.ackno+1;
                     }
+                    init_timer(timeOutInterval, ssTimeout);
                     start_timer();
                 }
                 else{
                     state = "congestion avoidance";
                     cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
+                    init_timer(timeOutInterval, ssTimeout);
                     start_timer();
                     sendpacket(cwnd);
                 }
@@ -203,10 +223,13 @@ int main(){
             acks[recvpkt->hdr.ackno%20000]++;
             dupAckCount++;
             if (acks[recvpkt->hdr.ackno%20000] >= 3){
+                temp = recvpkt->hdr.ackno;
+                fseek(fp, SEEK_SET, temp);
                 state = "fast recovery";
                 ssthresh = max(2*MSS_SIZE, cwnd/2);
                 start_timer();
                 //retransmit missing segments
+                init_timer(timeOutInterval, ssTimeout);
                 sendpacket(cwnd);
             }
         }
