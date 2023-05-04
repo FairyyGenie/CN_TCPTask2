@@ -11,7 +11,7 @@
 #include <time.h>
 #include <assert.h>
 #include <limits.h>
-
+#include <math.h>
 #include "packet.h"
 #include "common.h"
 
@@ -69,7 +69,7 @@ int karn(tcp_packet *p){
     return timeoutInterval;
 }
 
-void sendpacket(int cwnd){
+void sendpacket(float cwnd){
     if(firstByteNotInWindow < firstByteInWindow){
         firstByteNotInWindow = firstByteInWindow;
     }
@@ -115,7 +115,7 @@ void ssTimeout(int sig)
         }
         ssthresh = max(2*MSS_SIZE, cwnd/2);
         dupAckCount = 0;
-        fseek(fp, SEEK_SET, firstByteInWindow);
+        fseek(fp, firstByteInWindow, SEEK_SET);
         sendpacket(cwnd);
         start_timer();
     }
@@ -197,7 +197,7 @@ int main(int argc, char **argv){
     while(1){
         //IMPORTANT: ACKS may arrive out of order.
         if(strcmp(state, "slow start") == 0){
-            sendpacket(cwnd);
+            sendpacket(floor(cwnd));
             //receive bytes from sender
             bytesReceived = recvfrom(sockfd, buffer, MSS_SIZE, 0,
                       (struct sockaddr *)&serveraddr, (socklen_t *)&serverlen);
@@ -207,9 +207,10 @@ int main(int argc, char **argv){
             }
             recvpkt = (tcp_packet *)buffer;
             timeOutInterval = karn(recvpkt);
+            ssthresh=64 * MSS_SIZE;
             //if it's a new ACK
             if (acks[recvpkt->hdr.ackno%20000] == 0){
-                if(cwnd < ssthresh){
+                if(cwnd < ssthresh/2){
                     cwnd+=MSS_SIZE;
                     dupAckCount = 0;
                     if(recvpkt->hdr.ackno+1 > firstByteInWindow){
@@ -221,33 +222,67 @@ int main(int argc, char **argv){
                 else{
                     char newstate[256]= "congestion avoidance";
                     strcpy(state, newstate);
+                    //after congestion avoidance starts move to CA
                     cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
                     init_timer(timeOutInterval, ssTimeout);
                     start_timer();
-                    sendpacket(cwnd);
+                    sendpacket(floor(cwnd));
                 }
             }
             acks[recvpkt->hdr.ackno%20000]++;
-            dupAckCount++;
+            //dupAckCount++;
+            //packet lost case in slow start
             if (acks[recvpkt->hdr.ackno%20000] >= 3){
                 temp = recvpkt->hdr.ackno;
-                fseek(fp, SEEK_SET, temp);
-                char newstate[256]= "fast recovery";
-                strcpy(state, newstate);
+                fseek(fp, temp,SEEK_SET);
+                //fast retransmit
                 ssthresh = max(2*MSS_SIZE, cwnd/2);
+                cwnd=1 * MSS_SIZE;
                 start_timer();
                 //retransmit missing segments
                 init_timer(timeOutInterval, ssTimeout);
-                sendpacket(cwnd);
             }
         }
+        //CA state
         else if(strcmp(state, "congestion avoidance") == 0){
-            
-
+            //receive bytes from sender
+            bytesReceived = recvfrom(sockfd, buffer, MSS_SIZE, 0,
+                      (struct sockaddr *)&serveraddr, (socklen_t *)&serverlen);
+            //if no bytes are received
+            if (bytesReceived < 0){
+                error("recvfrom");
+            }
+            recvpkt = (tcp_packet *)buffer;
+            timeOutInterval = karn(recvpkt);
+             //if it's a new ACK
+            if (acks[recvpkt->hdr.ackno%20000] == 0){
+                //after congestion avoidance starts move to CA
+                cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
+                init_timer(timeOutInterval, ssTimeout);
+                start_timer();
+                sendpacket(floor(cwnd));
+            }
+            acks[recvpkt->hdr.ackno%20000]++;
+            //dupAckCount++;
+            //packet lost case in slow start
+            if (acks[recvpkt->hdr.ackno%20000] >= 3){
+                temp = recvpkt->hdr.ackno;
+                fseek(fp, temp,SEEK_SET);
+                char newstate[256]= "slow start";
+                strcpy(state, newstate);
+                //fast retransmit
+                ssthresh = max(2*MSS_SIZE, cwnd/2);
+                cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
+                start_timer();
+                //retransmit missing segments
+                init_timer(timeOutInterval, ssTimeout);
+                sendpacket(floor(cwnd));
+            }
         }
-        else if(strcmp(state, "fast recovery") == 0){
+        //no need 
+        // else if(strcmp(state, "fast retransmit") == 0){
 
-        }
+        // }
 
     }
 }
