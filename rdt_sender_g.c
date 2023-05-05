@@ -205,6 +205,7 @@ int main(int argc, char **argv){
                 error("recvfrom");
             }
             recvpkt = (tcp_packet *)buffer;
+            temp = recvpkt->hdr.ackno;
             timeOutInterval = karn(recvpkt);
             ssthresh=64 * MSS_SIZE;
             //if it's a new ACK
@@ -228,16 +229,13 @@ int main(int argc, char **argv){
                     //after congestion avoidance starts move to CA
                     cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
                     init_timer(timeOutInterval, ssTimeout);
-                    start_timer();
-                    sendpacket(floor(cwnd));
                 }
             }
             acks[recvpkt->hdr.ackno%20000]++;
             //dupAckCount++;
             //packet lost case in slow start
             if (acks[recvpkt->hdr.ackno%20000] >= 3){
-                 printf( "%s\n", "in SS we recv dupack sending and transmiting");
-                temp = recvpkt->hdr.ackno;
+                printf( "%s and num %d\n", "in SS we recv dupack and retransmitting", temp);
                 fseek(fp, temp,SEEK_SET);
                 //fast retransmit
                 ssthresh = max(2*MSS_SIZE, cwnd/2);
@@ -251,6 +249,8 @@ int main(int argc, char **argv){
         }
         //CA state
         else if(strcmp(state, "congestion avoidance") == 0){
+            start_timer();
+            sendpacket(floor(cwnd));
             //receive bytes from sender
             bytesReceived = recvfrom(sockfd, buffer, MSS_SIZE, 0,
                       (struct sockaddr *)&serveraddr, (socklen_t *)&serverlen);
@@ -259,6 +259,7 @@ int main(int argc, char **argv){
                 error("recvfrom");
             }
             recvpkt = (tcp_packet *)buffer;
+            temp = recvpkt->hdr.ackno;
             timeOutInterval = karn(recvpkt);
              //if it's a new ACK
             if (acks[recvpkt->hdr.ackno%20000] == 0){
@@ -270,16 +271,13 @@ int main(int argc, char **argv){
                 cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
                 printf( "%s\n", "in CA we good sending and transmiting");
                 init_timer(timeOutInterval, ssTimeout);
-                start_timer();
-                sendpacket(floor(cwnd));
             }
             acks[recvpkt->hdr.ackno%20000]++;
             //dupAckCount++;
             //packet lost case in CA
             if (acks[recvpkt->hdr.ackno%20000] >= 3){
-                printf( "%s\n", "in CA we recv dupack and retransmitting ");
-                temp = recvpkt->hdr.ackno;
-                fseek(fp, temp,SEEK_SET);
+                 printf( "%s and num %d\n", "in CA we recv dupack and retransmitting", temp);
+                fseek(fp, temp, SEEK_SET);
                 char newstate[256]= "slow start";
                 strcpy(state, newstate);
                 //fast retransmit
