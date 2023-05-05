@@ -62,7 +62,7 @@ void stop_timer()
 int karn(tcp_packet *p){
     float alpha = 0.25;
     float beta = 0.25;
-    int sampleRTT = &timer.it_value - startTimes[p->hdr.seqno];
+    float sampleRTT = &timer.it_value - startTimes[p->hdr.seqno];
     EstimatedRTT = (1-alpha) * EstimatedRTT + alpha * sampleRTT;
     DevRTT = (1 - beta) * DevRTT + beta * abs(sampleRTT - EstimatedRTT);
     float timeoutInterval = EstimatedRTT + 4 * DevRTT;
