@@ -249,6 +249,7 @@ int main(int argc, char **argv){
         }
         //CA state
         else if(strcmp(state, "congestion avoidance") == 0){
+            printf("%s\n", "we are now in congestion avoidance-let's see if it works");
             start_timer();
             sendpacket(floor(cwnd));
             //receive bytes from sender
@@ -287,6 +288,5 @@ int main(int argc, char **argv){
                 init_timer(timeOutInterval, ssTimeout);
             }
         }
-
     }
 }
