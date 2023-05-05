@@ -216,6 +216,7 @@ int main(int argc, char **argv){
                         firstByteInWindow = recvpkt->hdr.ackno+1;
                     }
                     init_timer(timeOutInterval, ssTimeout);
+                    printf( "%s\n", "in SS we good and sending ");
                 }
                 else{
                     char newstate[256]= "congestion avoidance";
@@ -225,6 +226,7 @@ int main(int argc, char **argv){
                     init_timer(timeOutInterval, ssTimeout);
                     start_timer();
                     sendpacket(floor(cwnd));
+                    printf( "%s\n", "going into CA sending and transmiting");
                 }
             }
             acks[recvpkt->hdr.ackno%20000]++;
@@ -241,6 +243,7 @@ int main(int argc, char **argv){
                 init_timer(timeOutInterval, ssTimeout);
                 start_timer();
                 sendpacket(floor(cwnd));
+                printf( "%s\n", "in SS we recv dupack sending and transmiting");
             }
         }
         //CA state
@@ -258,14 +261,16 @@ int main(int argc, char **argv){
             if (acks[recvpkt->hdr.ackno%20000] == 0){
                 //after congestion avoidance starts move to CA
                 cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
+                printf( "%s\n", "in CA we good sending and transmiting");
                 init_timer(timeOutInterval, ssTimeout);
                 start_timer();
                 sendpacket(floor(cwnd));
             }
             acks[recvpkt->hdr.ackno%20000]++;
             //dupAckCount++;
-            //packet lost case in slow start
+            //packet lost case in CA
             if (acks[recvpkt->hdr.ackno%20000] >= 3){
+                printf( "%s\n", "in CA we recv dupack and retransmitting ");
                 temp = recvpkt->hdr.ackno;
                 fseek(fp, temp,SEEK_SET);
                 char newstate[256]= "slow start";
