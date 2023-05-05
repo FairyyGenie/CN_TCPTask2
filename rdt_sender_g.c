@@ -249,7 +249,6 @@ int main(int argc, char **argv){
         }
         //CA state
         else if(strcmp(state, "congestion avoidance") == 0){
-            printf("This is the current size of the congestion window %f\n", cwnd);
             start_timer();
             sendpacket(floor(cwnd));
             //receive bytes from sender
@@ -261,6 +260,7 @@ int main(int argc, char **argv){
             }
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
+            printf("This is the ackno of our received packet: %d\n", temp);
             timeOutInterval = karn(recvpkt);
              //if it's a new ACK
             if (acks[recvpkt->hdr.ackno%20000] == 0){
