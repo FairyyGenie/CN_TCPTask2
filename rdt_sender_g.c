@@ -272,6 +272,7 @@ int main(int argc, char **argv){
         else if(strcmp(state, "congestion avoidance") == 0){
             start_timer();
             sendpacket(floor(cwnd));
+            ptintf("first byte in the window: %d\n", firstByteInWindow);
             //receive bytes from sender
             bytesReceived = recvfrom(sockfd, buffer, MSS_SIZE, 0,
                       (struct sockaddr *)&serveraddr, (socklen_t *)&serverlen);
