@@ -249,7 +249,7 @@ int main(int argc, char **argv){
         }
         //CA state
         else if(strcmp(state, "congestion avoidance") == 0){
-            printf("%s\n", "we are now in congestion avoidance-let's see if it works");
+            printf("This is the current size of the congestion window %f\n", cwnd);
             start_timer();
             sendpacket(floor(cwnd));
             //receive bytes from sender
