@@ -195,6 +195,7 @@ int main(int argc, char **argv){
     while(1){
         //IMPORTANT: ACKS may arrive out of order.
         if(strcmp(state, "slow start") == 0){
+            start_timer();
             sendpacket(floor(cwnd));
             //receive bytes from sender
             bytesReceived = recvfrom(sockfd, buffer, MSS_SIZE, 0,
@@ -215,7 +216,6 @@ int main(int argc, char **argv){
                         firstByteInWindow = recvpkt->hdr.ackno+1;
                     }
                     init_timer(timeOutInterval, ssTimeout);
-                    start_timer();
                 }
                 else{
                     char newstate[256]= "congestion avoidance";
@@ -273,16 +273,10 @@ int main(int argc, char **argv){
                 //fast retransmit
                 ssthresh = max(2*MSS_SIZE, cwnd/2);
                 cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
-                start_timer();
                 //retransmit missing segments
                 init_timer(timeOutInterval, ssTimeout);
-                sendpacket(floor(cwnd));
             }
         }
-        //no need 
-        // else if(strcmp(state, "fast retransmit") == 0){
-
-        // }
 
     }
 }
