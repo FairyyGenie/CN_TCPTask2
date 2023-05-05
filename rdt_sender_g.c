@@ -116,7 +116,6 @@ void ssTimeout(int sig)
         ssthresh = max(2*MSS_SIZE, cwnd/2);
         dupAckCount = 0;
         fseek(fp, firstByteInWindow, SEEK_SET);
-        sendpacket(cwnd);
     }
 }
 
@@ -240,6 +239,8 @@ int main(int argc, char **argv){
                 start_timer();
                 //retransmit missing segments
                 init_timer(timeOutInterval, ssTimeout);
+                start_timer();
+                sendpacket(floor(cwnd));
             }
         }
         //CA state
