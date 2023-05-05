@@ -42,10 +42,10 @@ int temp = 0;
 int ssthresh = INT_MAX;
 float cwnd = MSS_SIZE;
 int dupAckCount = 0;
-long EstimatedRTT;
-long DevRTT = 0;
-long startTimes[20000];
-long timeOutInterval;
+float EstimatedRTT;
+float DevRTT = 0;
+int startTimes[20000];
+float timeOutInterval;
 
 
 void start_timer()
@@ -63,23 +63,23 @@ int karn(int temp){
     float alpha = 0.125;
     float beta = 0.25;
     
-    long sampleRTT = &timer.it_value - startTimes[temp%20000];
-    printf("sample RTT %ld!\n", sampleRTT);
+    int sampleRTT = &timer.it_value - startTimes[temp%20000];
+    printf("sample RTT %d!\n", sampleRTT);
 
     if (EstimatedRTT==0){
         EstimatedRTT=0;
-        printf("Estimated RTT in 0 %ld!\n", EstimatedRTT);
-        long timeoutInterval=3;
-        printf("Timeoutinterval %ld!\n", timeOutInterval);
+        printf("Estimated RTT in 0 %f!\n", EstimatedRTT);
+        int timeoutInterval=3;
+        printf("Timeoutinterval %f \n", timeOutInterval);
 
         return timeoutInterval;
     }
     else{
         EstimatedRTT = (1-alpha) * EstimatedRTT + alpha * sampleRTT;
-        printf("Estimated RTT %ld!\n", EstimatedRTT);
+        printf("Estimated RTT %f!\n", EstimatedRTT);
         DevRTT = (1 - beta) * DevRTT + beta * fabs(sampleRTT - EstimatedRTT);
-        long timeoutInterval = EstimatedRTT + 4 * DevRTT;
-        printf("Timeoutinterval %ld!\n", timeOutInterval);
+        int timeoutInterval = EstimatedRTT + 4 * DevRTT;
+        printf("Timeoutinterval %f!\n", timeOutInterval);
 
         return timeoutInterval;
     }
