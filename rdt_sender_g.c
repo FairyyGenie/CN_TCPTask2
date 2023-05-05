@@ -210,29 +210,33 @@ int main(int argc, char **argv){
             //if it's a new ACK
             if (acks[recvpkt->hdr.ackno%20000] == 0){
                 if(cwnd < ssthresh/2){
+                     printf( "%s\n", "in SS we good and sending ");
                     cwnd+=MSS_SIZE;
                     dupAckCount = 0;
                     if(recvpkt->hdr.ackno+1 > firstByteInWindow){
                         firstByteInWindow = recvpkt->hdr.ackno+1;
                     }
                     init_timer(timeOutInterval, ssTimeout);
-                    printf( "%s\n", "in SS we good and sending ");
                 }
                 else{
+                    printf( "%s\n", "going into CA sending and transmiting");
                     char newstate[256]= "congestion avoidance";
                     strcpy(state, newstate);
+                     if(recvpkt->hdr.ackno+1 > firstByteInWindow){
+                        firstByteInWindow = recvpkt->hdr.ackno+1;
+                    }
                     //after congestion avoidance starts move to CA
                     cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
                     init_timer(timeOutInterval, ssTimeout);
                     start_timer();
                     sendpacket(floor(cwnd));
-                    printf( "%s\n", "going into CA sending and transmiting");
                 }
             }
             acks[recvpkt->hdr.ackno%20000]++;
             //dupAckCount++;
             //packet lost case in slow start
             if (acks[recvpkt->hdr.ackno%20000] >= 3){
+                 printf( "%s\n", "in SS we recv dupack sending and transmiting");
                 temp = recvpkt->hdr.ackno;
                 fseek(fp, temp,SEEK_SET);
                 //fast retransmit
@@ -243,7 +247,6 @@ int main(int argc, char **argv){
                 init_timer(timeOutInterval, ssTimeout);
                 start_timer();
                 sendpacket(floor(cwnd));
-                printf( "%s\n", "in SS we recv dupack sending and transmiting");
             }
         }
         //CA state
@@ -259,6 +262,10 @@ int main(int argc, char **argv){
             timeOutInterval = karn(recvpkt);
              //if it's a new ACK
             if (acks[recvpkt->hdr.ackno%20000] == 0){
+
+                 if(recvpkt->hdr.ackno+1 > firstByteInWindow){
+                        firstByteInWindow = recvpkt->hdr.ackno+1;
+                    }
                 //after congestion avoidance starts move to CA
                 cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
                 printf( "%s\n", "in CA we good sending and transmiting");
