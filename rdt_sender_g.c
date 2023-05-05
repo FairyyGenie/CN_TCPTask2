@@ -59,10 +59,10 @@ void stop_timer()
     sigprocmask(SIG_BLOCK, &sigmask, NULL);
 }
 
-int karn(tcp_packet *p){
+int karn(int temp){
     float alpha = 0.25;
     float beta = 0.25;
-    float sampleRTT = &timer.it_value - (float)startTimes[p->hdr.seqno];
+    int sampleRTT = &timer.it_value - startTimes[temp%20000];
     EstimatedRTT = (1-alpha) * EstimatedRTT + alpha * sampleRTT;
     DevRTT = (1 - beta) * DevRTT + beta * abs(sampleRTT - EstimatedRTT);
     float timeoutInterval = EstimatedRTT + 4 * DevRTT;
@@ -206,8 +206,8 @@ int main(int argc, char **argv){
             }
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
-            timeOutInterval = karn(recvpkt);
-            ssthresh=64 * MSS_SIZE;
+            timeOutInterval = karn(temp);
+            ssthresh=128* MSS_SIZE;
             //if it's a new ACK
             if (acks[recvpkt->hdr.ackno%20000] == 0){
                 if(cwnd < ssthresh/2){
@@ -217,6 +217,9 @@ int main(int argc, char **argv){
                     if(recvpkt->hdr.ackno+1 > firstByteInWindow){
                         firstByteInWindow = recvpkt->hdr.ackno+1;
                     }
+                     char newstate[256]= "slow start";
+                    strcpy(state, newstate);
+                    stop_timer();
                     init_timer(timeOutInterval, ssTimeout);
                 }
                 else{
@@ -228,6 +231,7 @@ int main(int argc, char **argv){
                     }
                     //after congestion avoidance starts move to CA
                     cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
+                    stop_timer();
                     init_timer(timeOutInterval, ssTimeout);
                 }
             }
@@ -236,15 +240,16 @@ int main(int argc, char **argv){
             //packet lost case in slow start
             if (acks[recvpkt->hdr.ackno%20000] >= 3){
                 printf( "%s and num %d\n", "in SS we recv dupack and retransmitting", temp);
+                char newstate[256]= "slow start";
+                strcpy(state, newstate);
                 fseek(fp, temp,SEEK_SET);
                 //fast retransmit
                 ssthresh = max(2*MSS_SIZE, cwnd/2);
                 cwnd=1 * MSS_SIZE;
-                start_timer();
+                stop_timer();
                 //retransmit missing segments
                 init_timer(timeOutInterval, ssTimeout);
-                start_timer();
-                sendpacket(floor(cwnd));
+
             }
         }
         //CA state
@@ -261,16 +266,19 @@ int main(int argc, char **argv){
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
             printf("This is the ackno of our received packet: %d\n", temp);
-            timeOutInterval = karn(recvpkt);
+            timeOutInterval = karn(temp);
              //if it's a new ACK
             if (acks[recvpkt->hdr.ackno%20000] == 0){
 
                  if(recvpkt->hdr.ackno+1 > firstByteInWindow){
                         firstByteInWindow = recvpkt->hdr.ackno+1;
                     }
+                 char newstate[256]= "congestion avoidance";
+                strcpy(state, newstate);
                 //after congestion avoidance starts move to CA
                 cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
                 printf( "%s\n", "in CA we good sending and transmiting");
+                stop_timer();
                 init_timer(timeOutInterval, ssTimeout);
             }
             acks[recvpkt->hdr.ackno%20000]++;
@@ -285,6 +293,7 @@ int main(int argc, char **argv){
                 ssthresh = max(2*MSS_SIZE, cwnd/2);
                 cwnd+=MSS_SIZE * MSS_SIZE/cwnd;
                 //retransmit missing segments
+                stop_timer();
                 init_timer(timeOutInterval, ssTimeout);
             }
         }
