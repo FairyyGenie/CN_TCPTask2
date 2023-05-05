@@ -117,7 +117,6 @@ void ssTimeout(int sig)
         dupAckCount = 0;
         fseek(fp, firstByteInWindow, SEEK_SET);
         sendpacket(cwnd);
-        start_timer();
     }
 }
 
