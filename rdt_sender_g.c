@@ -42,10 +42,10 @@ int temp = 0;
 int ssthresh = INT_MAX;
 float cwnd = MSS_SIZE;
 int dupAckCount = 0;
-int EstimatedRTT = 0;
-int DevRTT = 0;
+long EstimatedRTT;
+long DevRTT = 0;
 long startTimes[20000];
-int timeOutInterval;
+long timeOutInterval;
 
 
 void start_timer()
@@ -60,13 +60,29 @@ void stop_timer()
 }
 
 int karn(int temp){
-    float alpha = 0.25;
+    float alpha = 0.125;
     float beta = 0.25;
-    int sampleRTT = &timer.it_value - startTimes[temp%20000];
-    EstimatedRTT = (1-alpha) * EstimatedRTT + alpha * sampleRTT;
-    DevRTT = (1 - beta) * DevRTT + beta * abs(sampleRTT - EstimatedRTT);
-    float timeoutInterval = EstimatedRTT + 4 * DevRTT;
-    return timeoutInterval;
+    
+    long sampleRTT = &timer.it_value - startTimes[temp%20000];
+    printf("sample RTT %ld!\n", sampleRTT);
+
+    if (EstimatedRTT==0){
+        EstimatedRTT=0;
+        printf("Estimated RTT in 0 %ld!\n", EstimatedRTT);
+        long timeoutInterval=3;
+        printf("Timeoutinterval %ld!\n", timeOutInterval);
+
+        return timeoutInterval;
+    }
+    else{
+        EstimatedRTT = (1-alpha) * EstimatedRTT + alpha * sampleRTT;
+        printf("Estimated RTT %ld!\n", EstimatedRTT);
+        DevRTT = (1 - beta) * DevRTT + beta * fabs(sampleRTT - EstimatedRTT);
+        long timeoutInterval = EstimatedRTT + 4 * DevRTT;
+        printf("Timeoutinterval %ld!\n", timeOutInterval);
+
+        return timeoutInterval;
+    }
 }
 
 void sendpacket(float cwnd){
@@ -223,7 +239,7 @@ int main(int argc, char **argv){
                     init_timer(timeOutInterval, ssTimeout);
                 }
                 else{
-                    printf( "%s\n", "going into CA sending and transmiting");
+                    printf( "%s\n", "in SS going into CA sending and transmiting");
                     char newstate[256]= "congestion avoidance";
                     strcpy(state, newstate);
                      if(recvpkt->hdr.ackno+1 > firstByteInWindow){
@@ -285,7 +301,7 @@ int main(int argc, char **argv){
             //dupAckCount++;
             //packet lost case in CA
             if (acks[recvpkt->hdr.ackno%20000] >= 3){
-                 printf( "%s and num %d\n", "in CA we recv dupack and retransmitting", temp);
+                 printf( "%s and num %d\n", "in CA we recv dupack and retransmitting and going into SS", temp);
                 fseek(fp, temp, SEEK_SET);
                 char newstate[256]= "slow start";
                 strcpy(state, newstate);
