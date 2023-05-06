@@ -49,6 +49,7 @@ clock_t startTimes[20000];
 float timeOutInterval;
 FILE *fcsv;
 
+//timer functions
 void start_timer()
 {
     sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
@@ -60,11 +61,12 @@ void stop_timer()
     sigprocmask(SIG_BLOCK, &sigmask, NULL);
 }
 
+//karn algorithms
 double karn(int temp)
 {
     float alpha = 0.125;
     float beta = 0.25;
-    //all time are in seconds 
+    //all time are in clocks
     if (startTimes[temp % 20000]!=NULL){
         double sampleRTT = (float)(clock() - startTimes[temp % 20000]) / CLOCKS_PER_SEC ;
         EstimatedRTT = (1 - alpha) * EstimatedRTT + alpha * sampleRTT;
@@ -82,8 +84,10 @@ double karn(int temp)
     }
 }
 
+//send packet
 void sendpacket(float cwnd)
 {
+    //sendpacket boundary
     if (firstByteNotInWindow < firstByteInWindow)
     {
         firstByteNotInWindow = firstByteInWindow;
@@ -92,7 +96,7 @@ void sendpacket(float cwnd)
     {
         firstByteNotInWindow = firstByteInWindow;
     }
-
+    //sednding all packets in window
     while (firstByteNotInWindow < firstByteInWindow + cwnd)
     {
         fseek(fp, firstByteNotInWindow, SEEK_SET);
@@ -116,12 +120,14 @@ void sendpacket(float cwnd)
         }
         startTimes[sndpkt->hdr.seqno % 20000] = clock();
         firstByteNotInWindow += length;
+        //writing numbers into csv file
         double var = startTimes[sndpkt->hdr.seqno % 20000];
         fprintf(fcsv, "%f, %f, %d\n", var, cwnd/MSS_SIZE, ssthresh/MSS_SIZE);
     }
     printf("current cwnd size %f\n", cwnd);
 }
 
+//resend packet after dupack
 void resendpacket(int temp)
 {
     fseek(fp, temp, SEEK_SET);
@@ -149,6 +155,7 @@ void resendpacket(int temp)
     printf("current cwnd size %f\n", cwnd);
 }
 
+//timeout send packets again
 void ssTimeout(int sig)
 {
     if (sig == SIGALRM)
@@ -183,9 +190,8 @@ void init_timer(int delay, void (*sig_handler)(int))
 
 int main(int argc, char **argv)
 {
-
+    //initiating csv file
     fcsv = fopen("CWND.csv", "w");
-
     char state[256] = "slow start";
     int portno;
     // int next_seqno;
@@ -266,6 +272,7 @@ int main(int argc, char **argv)
             {
                 retranx = 0;
                 timeOutInterval = karn(sndpkt->hdr.seqno);
+                //stay in SS if under half ssthresh
                 if (cwnd < ssthresh / 2)
                 {
                     printf("%s\n", "in SS we good and sending ");
@@ -277,10 +284,11 @@ int main(int argc, char **argv)
                     }
                     char newstate[256] = "slow start";
                     strcpy(state, newstate);
+                    //stop timer and update RTO
                     stop_timer();
                     init_timer(timeOutInterval, ssTimeout);
                 }
-                else
+                else //go into CA if over half ssthresh
                 {
                     printf("%s\n", "in SS going into CA sending and transmiting");
                     char newstate[256] = "congestion avoidance";
@@ -291,6 +299,7 @@ int main(int argc, char **argv)
                     }
                     // after congestion avoidance starts move to CA
                     cwnd += MSS_SIZE / cwnd;
+                    //stop timer and update RTO
                     stop_timer();
                     init_timer(timeOutInterval, ssTimeout);
                 }
@@ -311,6 +320,7 @@ int main(int argc, char **argv)
                 // fast retransmit
                 ssthresh = fmax(2 * MSS_SIZE, cwnd / 2);
                 cwnd = 1 * MSS_SIZE;
+                //stop timer and update RTO
                 stop_timer();
                 // retransmit missing segments
                 init_timer(timeOutInterval, ssTimeout);
