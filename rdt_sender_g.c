@@ -268,13 +268,12 @@ int main(int argc, char **argv)
             }
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
-            timeOutInterval = karn(temp);
             // if it's a new ACK
             if (acks[recvpkt->hdr.ackno % 20000] == 0)
             {
                 retranx=0;
                 printf("%s\n", "Going through ");
-
+                timeOutInterval = karn(temp);
                 if (cwnd < ssthresh / 2)
                 {
                     printf("%s\n", "in SS we good and sending ");
@@ -344,10 +343,10 @@ int main(int argc, char **argv)
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
             printf("This is the ackno of our received packet: %d\n", temp);
-            timeOutInterval = karn(temp);
             // if it's a new ACK
             if (acks[recvpkt->hdr.ackno % 20000] == 0)
             {
+                timeOutInterval = karn(temp);
                 retranx=0;
                 if (recvpkt->hdr.ackno > firstByteInWindow)
                 {
