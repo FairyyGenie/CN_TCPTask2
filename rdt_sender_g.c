@@ -69,25 +69,14 @@ int karn(int temp)
     printf("this is when we started the timer for this particular packet: ", startTimes[temp % 20000]);
     printf("sample RTT %d!\n", sampleRTT);
 
-    if (EstimatedRTT == 0)
-    {
-        EstimatedRTT = 0;
-        printf("Estimated RTT in 0 %f!\n", EstimatedRTT);
-        int timeoutInterval = 3000000000;
-        printf("Timeoutinterval %f \n", timeOutInterval);
-        return timeoutInterval;
-    }
-    else
-    {
-        EstimatedRTT = (1 - alpha) * EstimatedRTT + alpha * sampleRTT;
-        printf("Estimated RTT %f!\n", EstimatedRTT);
-        DevRTT = (1 - beta) * DevRTT + beta * fabs(sampleRTT - EstimatedRTT);
-        printf("Dev RTT: %d\n", DevRTT);
-        int timeoutInterval = EstimatedRTT + 4 * DevRTT;
-        printf("Timeoutinterval %f!\n", timeOutInterval);
+    EstimatedRTT = (1 - alpha) * EstimatedRTT + alpha * sampleRTT;
+    printf("Estimated RTT %f!\n", EstimatedRTT);
+    DevRTT = (1 - beta) * DevRTT + beta * fabs(sampleRTT - EstimatedRTT);
+    printf("Dev RTT: %d\n", DevRTT);
+    int timeoutInterval = EstimatedRTT + 4 * DevRTT;
+    printf("Timeoutinterval %f!\n", timeOutInterval);
 
-        return timeoutInterval;
-    }
+    return timeoutInterval;
 }
 
 void sendpacket(float cwnd)
