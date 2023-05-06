@@ -172,8 +172,8 @@ void init_timer(int delay, void (*sig_handler)(int))
     signal(SIGALRM, sig_handler);
     timer.it_interval.tv_sec = delay / 1000; // sets an interval of the timer
     timer.it_interval.tv_usec = (delay % 1000) * 1000;
-    timer.it_value.tv_sec = 0 // sets an initial value
-    timer.it_value.tv_usec = 0
+    timer.it_value.tv_sec = 0; // sets an initial value
+    timer.it_value.tv_usec = 0;
 
     sigemptyset(&sigmask);
     sigaddset(&sigmask, SIGALRM);
