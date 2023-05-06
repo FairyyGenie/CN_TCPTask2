@@ -47,6 +47,12 @@ long long EstimatedRTT;
 long long DevRTT = 0;
 clock_t startTimes[20000];
 float timeOutInterval;
+char buffer[256];
+
+
+FILE *fcsv = fopen('data.csv', 'w');
+char header[] = "start time, cwnd, ssthresh";
+fwrite(header, 1, sizeof(header), fcsv);
 
 void start_timer()
 {
@@ -109,6 +115,7 @@ void sendpacket(float cwnd)
         }
         startTimes[sndpkt->hdr.seqno % 20000] = clock();
         firstByteNotInWindow += length;
+        fprintf(fcsv, '%li, %d, %d\n', startTimes[sndpkt->hdr.seqno % 20000], cwnd, ssthresh);
     }
 }
 
@@ -134,6 +141,7 @@ void resendpacket(int temp)
     }
     startTimes[sndpkt->hdr.seqno % 20000] = &timer.it_value;
     acks[sndpkt->hdr.seqno % 20000] = 0;
+    fprintf(fcsv, '%li, %d, %d\n', startTimes[sndpkt->hdr.seqno % 20000], cwnd, ssthresh);
 }
 
 int max(int x, int y)
@@ -244,6 +252,7 @@ int main(int argc, char **argv)
             if (retranx==0){
                 start_timer();
                 sendpacket(floor(cwnd));
+                
             }
             // receive bytes from sender
             bytesReceived = recvfrom(sockfd, buffer, MSS_SIZE, 0,
