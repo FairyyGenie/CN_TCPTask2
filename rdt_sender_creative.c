@@ -64,21 +64,20 @@ double karn(int temp)
 {
     float alpha = 0.125;
     float beta = 0.25;
+    //all time are in seconds 
     if (startTimes[temp % 20000]!=NULL){
-        double sampleRTT = (float)(clock() - startTimes[temp % 20000]) / CLOCKS_PER_SEC * 1000000000;
-        printf("current timer value: %ln\n", &timer.it_value.tv_sec);
-        printf("this is when we started the timer for this particular packet: %ld", startTimes[temp % 20000]);
-        printf("sample RTT %f!\n", sampleRTT);
+        double sampleRTT = (float)(clock() - startTimes[temp % 20000]) / CLOCKS_PER_SEC ;
         EstimatedRTT = (1 - alpha) * EstimatedRTT + alpha * sampleRTT;
-        printf("Estimated RTT %f!\n", EstimatedRTT);
+        printf("RTT %f!\n", EstimatedRTT);
         DevRTT = (1 - beta) * DevRTT + beta * fabs(sampleRTT - EstimatedRTT);
-        printf("Dev RTT: %f\n", DevRTT);
         double timeoutInterval = EstimatedRTT + 4 * DevRTT;
-        printf("Timeoutinterval %f!\n", timeOutInterval);
+        printf("RTO %f!\n", timeoutInterval);
+        //upperbound of timeout value
+        timeoutInterval=fmax(240, timeoutInterval);
         return timeoutInterval;
     }
     else{
-        printf("Can't do this this is not okay");
+        printf("Can't do, something wrong with startTimes");
 
     }
 }
@@ -118,10 +117,8 @@ void sendpacket(float cwnd)
         startTimes[sndpkt->hdr.seqno % 20000] = clock();
         firstByteNotInWindow += length;
         double var = startTimes[sndpkt->hdr.seqno % 20000];
-        fprintf(fcsv, "%f, %f, %d\n", var, cwnd, ssthresh);
+        fprintf(fcsv, "%f, %f, %d\n", var/ CLOCKS_PER_SEC, cwnd/MSS_SIZE, ssthresh/MSS_SIZE);
     }
-    printf("first byte in the window: %d\n", firstByteInWindow);
-    printf("first byte not in the window: %d\n", firstByteNotInWindow);
     printf("current cwnd size %f\n", cwnd);
 }
 
@@ -148,7 +145,8 @@ void resendpacket(int temp)
     }
     startTimes[sndpkt->hdr.seqno % 20000] = clock();
     double var = startTimes[sndpkt->hdr.seqno % 20000];
-    fprintf(fcsv, "%f, %f, %d\n", var, cwnd, ssthresh);
+    fprintf(fcsv, "%f, %f, %d\n", var/ CLOCKS_PER_SEC, cwnd/MSS_SIZE, ssthresh/MSS_SIZE);
+    printf("current cwnd size %f\n", cwnd);
 }
 
 void ssTimeout(int sig)
@@ -160,7 +158,6 @@ void ssTimeout(int sig)
             exit(0);
         }
         printf("Timed Out!\n");
-
         ssthresh = fmax(2 * MSS_SIZE, cwnd / 2);
         dupAckCount = 0;
         sendpacket(floor(cwnd));
@@ -263,6 +260,7 @@ int main(int argc, char **argv)
             }
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
+            printf("Ack received: %d\n", temp);
             // if it's a new ACK
             if (acks[recvpkt->hdr.ackno % 20000] == 0)
             {
@@ -303,7 +301,7 @@ int main(int argc, char **argv)
             if (acks[recvpkt->hdr.ackno % 20000] >= 3)
             {
                 retranx = 1;
-                printf("in SS we recv dupack and retransmitting and going into SS and num %d\n", temp);
+                printf("in SS we recv dupack and retransmitting and going into SS at packet %d\n", temp);
                 char newstate[256] = "slow start";
                 strcpy(state, newstate);
                 if (recvpkt->hdr.ackno > firstByteInWindow)
@@ -339,7 +337,7 @@ int main(int argc, char **argv)
             }
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
-            printf("This is the ackno of our received packet: %d\n", temp);
+            printf("Ack received: %d\n", temp);
             // if it's a new ACK
             if (acks[recvpkt->hdr.ackno % 20000] == 0)
             {
@@ -363,7 +361,7 @@ int main(int argc, char **argv)
             if (acks[recvpkt->hdr.ackno % 20000] >= 3)
             {
                 retranx = 1;
-                printf("in CA we recv dupack and retransmitting and going into SS and num %d\n", temp);
+                printf("in CA we recv dupack and retransmitting and going into SS at packet %d\n", temp);
                 char newstate[256] = "slow start";
                 strcpy(state, newstate);
                 if (recvpkt->hdr.ackno > firstByteInWindow)
