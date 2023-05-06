@@ -64,7 +64,7 @@ float karn(int temp)
     float alpha = 0.125;
     float beta = 0.25;
 
-    double sampleRTT = (float)(clock() - startTimes[temp % 20000])/CLOCKS_PER_SEC * 1000;
+    double sampleRTT = (float)(clock() - startTimes[temp % 20000])/CLOCKS_PER_SEC * 1000000000;
     printf("Sample RTT %d\n:", sampleRTT);
     printf("current timer value: %d\n", &timer.it_value);
     printf("this is when we started the timer for this particular packet: ", startTimes[temp % 20000]);
