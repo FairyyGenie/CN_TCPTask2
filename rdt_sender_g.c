@@ -65,6 +65,8 @@ int karn(int temp)
     float beta = 0.25;
 
     int sampleRTT = &timer.it_value - startTimes[temp % 20000];
+    printf("current timer value: %d\n", &timer.it_value);
+    printf("this is when we started the timer for this particular packet: ", startTimes[temp % 20000]);
     printf("sample RTT %d!\n", sampleRTT);
 
     if (EstimatedRTT == 0)
