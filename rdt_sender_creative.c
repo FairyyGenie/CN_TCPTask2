@@ -45,7 +45,7 @@ float cwnd = MSS_SIZE;
 int dupAckCount = 0;
 float EstimatedRTT;
 float DevRTT = 0;
-int startTimes[20000];
+clock_t startTimes[20000];
 float timeOutInterval;
 
 void start_timer()
@@ -64,30 +64,17 @@ int karn(int temp)
     float alpha = 0.125;
     float beta = 0.25;
 
-    int sampleRTT = &timer.it_value - startTimes[temp % 20000];
+    int sampleRTT = (clock() - startTimes[temp % 20000])/CLOCKS_PER_SEC * 1000;
     printf("current timer value: %d\n", &timer.it_value);
     printf("this is when we started the timer for this particular packet: ", startTimes[temp % 20000]);
     printf("sample RTT %d!\n", sampleRTT);
-
-    if (EstimatedRTT == 0)
-    {
-        EstimatedRTT = 0;
-        printf("Estimated RTT in 0 %f!\n", EstimatedRTT);
-        int timeoutInterval = 3000000000;
-        printf("Timeoutinterval %f \n", timeOutInterval);
-        return timeoutInterval;
-    }
-    else
-    {
-        EstimatedRTT = (1 - alpha) * EstimatedRTT + alpha * sampleRTT;
-        printf("Estimated RTT %f!\n", EstimatedRTT);
-        DevRTT = (1 - beta) * DevRTT + beta * fabs(sampleRTT - EstimatedRTT);
-        printf("Dev%d\n", )
-        int timeoutInterval = EstimatedRTT + 4 * DevRTT;
-        printf("Timeoutinterval %f!\n", timeOutInterval);
-        printf("Dev RTT %f!\n", EstimatedRTT);
-        return timeoutInterval;
-    }
+    EstimatedRTT = (1 - alpha) * EstimatedRTT + alpha * sampleRTT;
+    printf("Estimated RTT %f!\n", EstimatedRTT);
+    DevRTT = (1 - beta) * DevRTT + beta * fabs(sampleRTT - EstimatedRTT);
+    printf("Dev RTT: %d\n", DevRTT);
+    int timeoutInterval = EstimatedRTT + 4 * DevRTT;
+    printf("Timeoutinterval %f!\n", timeOutInterval);
+    return timeoutInterval;
 }
 
 void sendpacket(float cwnd)
@@ -120,7 +107,7 @@ void sendpacket(float cwnd)
         {
             error("sendto");
         }
-        startTimes[sndpkt->hdr.seqno % 20000] = &timer.it_value;
+        startTimes[sndpkt->hdr.seqno % 20000] = clock();
         firstByteNotInWindow += length;
     }
 }
