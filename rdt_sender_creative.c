@@ -97,7 +97,7 @@ void sendpacket(float cwnd)
             sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0,
                    (const struct sockaddr *)&serveraddr, serverlen);
             eof = 1;
-            break;
+            exit(0);
         }
         sndpkt = make_packet(length);
         sndpkt->hdr.seqno = firstByteNotInWindow;
@@ -123,6 +123,7 @@ void resendpacket(int temp)
         sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0,
                (const struct sockaddr *)&serveraddr, serverlen);
         eof = 1;
+        exit(0);
     }
     sndpkt = make_packet(length);
     sndpkt->hdr.seqno = temp;
@@ -234,7 +235,7 @@ int main(int argc, char **argv)
     bzero(bytes, sizeof(bytes));
 
     init_timer(RETRY, ssTimeout);
-    ssthresh = 128 * MSS_SIZE;
+    ssthresh = 64 * MSS_SIZE;
 
     while (1)
     {
@@ -255,12 +256,11 @@ int main(int argc, char **argv)
             }
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
+            timeOutInterval = karn(temp);
             // if it's a new ACK
             if (acks[recvpkt->hdr.ackno % 20000] == 0)
             {
                 retranx=0;
-                printf("%s\n", "Going through ");
-                timeOutInterval = karn(temp);
                 if (cwnd < ssthresh / 2)
                 {
                     printf("%s\n", "in SS we good and sending ");
@@ -285,7 +285,7 @@ int main(int argc, char **argv)
                         firstByteInWindow = recvpkt->hdr.ackno ;
                     }
                     // after congestion avoidance starts move to CA
-                    cwnd += MSS_SIZE * MSS_SIZE / cwnd;
+                    cwnd +=  MSS_SIZE / cwnd;
                     stop_timer();
                     init_timer(timeOutInterval, ssTimeout);
                 }
@@ -329,11 +329,11 @@ int main(int argc, char **argv)
             }
             recvpkt = (tcp_packet *)buffer;
             temp = recvpkt->hdr.ackno;
+            timeOutInterval = karn(temp);
             printf("This is the ackno of our received packet: %d\n", temp);
             // if it's a new ACK
             if (acks[recvpkt->hdr.ackno % 20000] == 0)
             {
-                timeOutInterval = karn(temp);
                 retranx=0;
                 if (recvpkt->hdr.ackno > firstByteInWindow)
                 {
