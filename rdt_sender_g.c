@@ -91,6 +91,7 @@ void sendpacket(float cwnd)
 
     while (firstByteNotInWindow < firstByteInWindow + cwnd)
     {
+        fseek(fp, firstByteNotInWindow, SEEK_SET);
         length = fread(buffer, 1, DATA_SIZE, fp);
         if (length <= 0)
         {
@@ -160,7 +161,7 @@ void ssTimeout(int sig)
         }
         ssthresh = max(2 * MSS_SIZE, cwnd / 2);
         dupAckCount = 0;
-        fseek(fp, firstByteInWindow, SEEK_SET);
+        sendpacket(floor(cwnd));
     }
 }
 
@@ -247,6 +248,11 @@ int main(int argc, char **argv)
                 start_timer();
                 sendpacket(floor(cwnd));
             }
+            if (eof == 1)
+            {
+                VLOG(INFO, "End Of File has been reached");
+                 exit(0);
+            }
             // receive bytes from sender
             bytesReceived = recvfrom(sockfd, buffer, MSS_SIZE, 0,
                                      (struct sockaddr *)&serveraddr, (socklen_t *)&serverlen);
@@ -268,7 +274,7 @@ int main(int argc, char **argv)
                     printf("%s\n", "in SS we good and sending ");
                     cwnd += MSS_SIZE;
                     dupAckCount = 0;
-                    if (recvpkt->hdr.ackno > firstByteInWindow)
+                    if (recvpkt->hdr.ackno >= firstByteInWindow)
                     {
                         firstByteInWindow = recvpkt->hdr.ackno ;
                     }
@@ -282,7 +288,7 @@ int main(int argc, char **argv)
                     printf("%s\n", "in SS going into CA sending and transmiting");
                     char newstate[256] = "congestion avoidance";
                     strcpy(state, newstate);
-                    if (recvpkt->hdr.ackno > firstByteInWindow)
+                    if (recvpkt->hdr.ackno >= firstByteInWindow)
                     {
                         firstByteInWindow = recvpkt->hdr.ackno ;
                     }
@@ -318,6 +324,11 @@ int main(int argc, char **argv)
                 start_timer();
                 sendpacket(floor(cwnd));
             }
+             if (eof == 1)
+            {
+                VLOG(INFO, "End Of File has been reached");
+                 exit(0);
+            }
             printf("first byte in the window: %d\n", firstByteInWindow);
             printf("first byte not in the window: %d\n", firstByteNotInWindow);
             printf("current cwnd size %f\n", cwnd);
@@ -337,7 +348,7 @@ int main(int argc, char **argv)
             {
                 timeOutInterval = karn(temp);
                 retranx=0;
-                if (recvpkt->hdr.ackno > firstByteInWindow)
+                if (recvpkt->hdr.ackno >= firstByteInWindow)
                 {
                     firstByteInWindow = recvpkt->hdr.ackno;
                 }
