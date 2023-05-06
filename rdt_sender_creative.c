@@ -59,12 +59,13 @@ void stop_timer()
     sigprocmask(SIG_BLOCK, &sigmask, NULL);
 }
 
-int karn(int temp)
+float karn(int temp)
 {
     float alpha = 0.125;
     float beta = 0.25;
 
-    int sampleRTT = (clock() - startTimes[temp % 20000])/CLOCKS_PER_SEC * 1000;
+    double sampleRTT = (float)(clock() - startTimes[temp % 20000])/CLOCKS_PER_SEC * 1000;
+    printf("Sample RTT %d\n:", sampleRTT);
     printf("current timer value: %d\n", &timer.it_value);
     printf("this is when we started the timer for this particular packet: ", startTimes[temp % 20000]);
     printf("sample RTT %d!\n", sampleRTT);
@@ -72,7 +73,7 @@ int karn(int temp)
     printf("Estimated RTT %f!\n", EstimatedRTT);
     DevRTT = (1 - beta) * DevRTT + beta * fabs(sampleRTT - EstimatedRTT);
     printf("Dev RTT: %d\n", DevRTT);
-    int timeoutInterval = EstimatedRTT + 4 * DevRTT;
+    float timeoutInterval = EstimatedRTT + 4 * DevRTT;
     printf("Timeoutinterval %f!\n", timeOutInterval);
     return timeoutInterval;
 }
