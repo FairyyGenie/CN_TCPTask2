@@ -25,7 +25,7 @@ ax2.set_ylim([0, max(y1)])
 #ax2.set_xlim([0,5])
 
 ax1.set_ylabel("Window Size (num. packets)")
-ax1.set_xlabel("Time (seconds)")
+ax1.set_xlabel("Time (miliseconds)")
 ax2.set_ylabel("ss_thresh (num. packets)")
 
     # set colours for each y-axis to tell them apart
