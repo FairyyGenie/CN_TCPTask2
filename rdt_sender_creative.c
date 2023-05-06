@@ -117,7 +117,7 @@ void sendpacket(float cwnd)
         startTimes[sndpkt->hdr.seqno % 20000] = clock();
         firstByteNotInWindow += length;
         double var = startTimes[sndpkt->hdr.seqno % 20000];
-        fprintf(fcsv, "%f, %f, %d\n", var/ CLOCKS_PER_SEC, cwnd/MSS_SIZE, ssthresh/MSS_SIZE);
+        fprintf(fcsv, "%f, %f, %d\n", var, cwnd/MSS_SIZE, ssthresh/MSS_SIZE);
     }
     printf("current cwnd size %f\n", cwnd);
 }
@@ -145,7 +145,7 @@ void resendpacket(int temp)
     }
     startTimes[sndpkt->hdr.seqno % 20000] = clock();
     double var = startTimes[sndpkt->hdr.seqno % 20000];
-    fprintf(fcsv, "%f, %f, %d\n", var/ CLOCKS_PER_SEC, cwnd/MSS_SIZE, ssthresh/MSS_SIZE);
+    fprintf(fcsv, "%f, %f, %d\n", var, cwnd/MSS_SIZE, ssthresh/MSS_SIZE);
     printf("current cwnd size %f\n", cwnd);
 }
 
