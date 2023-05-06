@@ -73,7 +73,7 @@ int karn(int temp)
     {
         EstimatedRTT = 0;
         printf("Estimated RTT in 0 %f!\n", EstimatedRTT);
-        int timeoutInterval = 3;
+        int timeoutInterval = 3000000000;
         printf("Timeoutinterval %f \n", timeOutInterval);
 
         return timeoutInterval;
